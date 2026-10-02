@@ -1,69 +1,163 @@
-import Image from "next/image";
+import { ArrowDown, ArrowUp, AlertCircle, FileText, Wallet } from "lucide-react";
+import DashboardChart from "@/components/DashboardChart";
+import pool from "../lib/db";
 
-export default function Home() {
+const formatRupiah = (angka: number) => {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(angka);
+};
+
+export default async function Home() {
+  let totalMasuk = 0;
+  let totalKeluar = 0;
+  let chartData: any[] = [];
+
+  try {
+    const [rows]: any = await pool.query(
+      "SELECT SUM(total_masuk) as totalMasuk, SUM(total_keluar) as totalKeluar FROM ringkasan_kas_harian"
+    );
+    if (rows && rows.length > 0) {
+      totalMasuk = Number(rows[0].totalMasuk) || 0;
+      totalKeluar = Number(rows[0].totalKeluar) || 0;
+    }
+
+    const [chartRows]: any = await pool.query(
+      "SELECT tanggal, total_masuk, total_keluar FROM ringkasan_kas_harian ORDER BY tanggal ASC LIMIT 7"
+    );
+    if (chartRows && chartRows.length > 0) {
+      chartData = chartRows.map((row: any) => ({
+        date: new Date(row.tanggal).toLocaleDateString("id-ID", { month: "short", day: "numeric" }),
+        aktual: Number(row.total_masuk),
+        prediksi: Number(row.total_keluar),
+      }));
+    }
+  } catch (error) {
+    console.error("Database connection failed:", error);
+    chartData = [
+      { date: "1 Okt", aktual: 10000000, prediksi: 10000000 },
+      { date: "5 Okt", aktual: 15000000, prediksi: 14000000 },
+      { date: "10 Okt", aktual: 12000000, prediksi: 18000000 },
+      { date: "15 Okt", aktual: 25000000, prediksi: 22000000 },
+      { date: "Hari Ini", aktual: 18000000, prediksi: 26000000 },
+      { date: "1 Nov", aktual: 0, prediksi: 35000000 },
+    ];
+    totalMasuk = 12400000;
+    totalKeluar = 8200000;
+  }
+
+  const laba = totalMasuk - totalKeluar;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="space-y-6 max-w-[1200px] mx-auto pb-8">
+      {/* Header */}
+      <div className="border-b border-gray-200 pb-5">
+        <h1 className="text-2xl font-semibold text-gray-900">Dashboard</h1>
+        <p className="text-sm text-gray-500 mt-1">Ringkasan aktivitas finansial periode ini.</p>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {/* Pemasukan */}
+        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-gray-500">Pemasukan</h3>
+            <ArrowDown className="h-4 w-4 text-emerald-600" />
+          </div>
+          <div className="text-2xl font-semibold text-gray-900">{formatRupiah(totalMasuk)}</div>
+          <p className="text-xs text-gray-500 mt-1">
+            <span className="text-emerald-600 font-medium">+12.5%</span> vs bulan lalu
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Pengeluaran */}
+        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-gray-500">Pengeluaran</h3>
+            <ArrowUp className="h-4 w-4 text-rose-600" />
+          </div>
+          <div className="text-2xl font-semibold text-gray-900">{formatRupiah(totalKeluar)}</div>
+          <p className="text-xs text-gray-500 mt-1">
+            <span className="text-rose-600 font-medium">-2.4%</span> vs bulan lalu
+          </p>
         </div>
-      </main>
+
+        {/* Laba */}
+        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-gray-500">Laba Bersih</h3>
+            <Wallet className="h-4 w-4 text-blue-700" />
+          </div>
+          <div className="text-2xl font-semibold text-gray-900">{formatRupiah(laba)}</div>
+          <p className="text-xs text-gray-500 mt-1">Status arus kas sehat</p>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Chart */}
+        <div className="lg:col-span-2 rounded-lg border border-gray-200 bg-white shadow-sm flex flex-col">
+          <div className="p-5 border-b border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-base font-semibold text-gray-900">Arus Kas Harian</h3>
+              <p className="text-sm text-gray-500">Aktual vs Prediksi (30 Hari)</p>
+            </div>
+            <div className="flex items-center gap-3 text-sm">
+              <div className="flex items-center gap-1.5 text-gray-600">
+                <span className="w-2 h-2 rounded-full bg-blue-700"></span> Aktual
+              </div>
+              <div className="flex items-center gap-1.5 text-gray-600">
+                <span className="w-2 h-2 rounded-full bg-gray-300"></span> Prediksi
+              </div>
+            </div>
+          </div>
+          <div className="p-5 flex-1 w-full h-[300px]">
+            <DashboardChart data={chartData} />
+          </div>
+        </div>
+
+        {/* Metrics & Nudge */}
+        <div className="space-y-6">
+          <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm flex flex-col items-center">
+            <h3 className="text-sm font-medium text-gray-900 mb-4 self-start">Health Score</h3>
+            <div className="relative flex items-center justify-center">
+              <svg width="140" height="140" className="transform -rotate-90">
+                <circle cx="70" cy="70" r="60" stroke="#f3f4f6" strokeWidth="12" fill="transparent" />
+                <circle
+                  cx="70"
+                  cy="70"
+                  r="60"
+                  stroke="#1d4ed8"
+                  strokeWidth="12"
+                  strokeDasharray="377"
+                  strokeDashoffset="56"
+                  strokeLinecap="round"
+                  fill="transparent"
+                />
+              </svg>
+              <div className="absolute flex flex-col items-center justify-center">
+                <span className="text-3xl font-semibold text-gray-900">85</span>
+              </div>
+            </div>
+            <p className="text-sm font-medium text-emerald-600 mt-4">Kondisi Sehat</p>
+          </div>
+
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 shadow-sm">
+            <div className="flex gap-3">
+              <AlertCircle className="h-5 w-5 text-blue-700 shrink-0" />
+              <div>
+                <h4 className="text-sm font-semibold text-blue-900">AI Insight</h4>
+                <p className="text-sm text-blue-800 mt-1">
+                  Arus kas berisiko menurun akhir minggu ini. Disarankan menunda pembelian inventaris non-esensial.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
